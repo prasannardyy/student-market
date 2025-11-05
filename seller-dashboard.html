@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Seller Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="logo">🏪 Seller Dashboard</div>
+        <nav>
+            <a href="listings.html">View Products</a>
+            <a href="index.html" id="logoutBtn">Logout</a>
+        </nav>
+    </header>
+    <h2 class="page-title">Add a Product</h2>
+    <div id="errorMessage" style="display: none;" class="error-message"></div>
+    <div id="successMessage" style="display: none;" class="success-message"></div>
+    <form class="form-card" id="addProductForm">
+        <label>Product Name:</label>
+        <input type="text" id="productName" name="name" required>
+        <label>Description:</label>
+        <textarea id="productDescription" name="description" rows="4"></textarea>
+        <label>Price (₹):</label>
+        <input type="number" id="productPrice" name="price" min="0" step="0.01" required>
+        <label>Stock:</label>
+        <input type="number" id="productStock" name="stock" min="1" required>
+        
+        <label>Product Image URL (Optional):</label>
+        <input type="url" id="productImageUrl" name="imageUrl" placeholder="https://example.com/image.jpg">
+        <p style="font-size: 0.9em; color: #666; margin: 5px 0 15px 0;">
+            💡 Tip: Find free images at <a href="https://unsplash.com" target="_blank">Unsplash</a> or <a href="https://pexels.com" target="_blank">Pexels</a>
+        </p>
+        
+        <label>Or Upload Image (File upload disabled - requires Firebase Storage):</label>
+        <input type="file" id="productImage" accept="image/*" disabled>
+        <p style="font-size: 0.9em; color: #999; margin: 5px 0 15px 0;">
+            File upload requires Firebase Blaze plan. Use image URL instead.
+        </p>
+        
+        <button class="btn accent" type="submit">Add Product</button>
+    </form>
+
+    <script type="module">
+        import { auth, onAuthStateChanged } from './js/firebase-config.js';
+        import { logoutUser } from './js/auth.js';
+        import { addProduct } from './js/products.js';
+
+        const addProductForm = document.getElementById('addProductForm');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // Check if user is authenticated and is a seller
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = 'seller-login.html';
+                return;
+            }
+
+            const userRole = localStorage.getItem('userRole');
+            if (userRole !== 'seller' && userRole !== 'admin') {
+                alert('Access denied. Seller credentials required.');
+                window.location.href = 'index.html';
+            }
+        });
+
+        // Logout handler
+        logoutBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await logoutUser();
+            window.location.href = 'index.html';
+        });
+
+        // Add product form handler
+        addProductForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('productName').value;
+            const description = document.getElementById('productDescription').value;
+            const price = document.getElementById('productPrice').value;
+            const stock = document.getElementById('productStock').value;
+            const imageUrl = document.getElementById('productImageUrl').value;
+
+            const sellerId = localStorage.getItem('userId');
+            const sellerName = localStorage.getItem('userName');
+
+            if (!sellerId) {
+                errorMessage.textContent = 'Please login again.';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            try {
+                errorMessage.style.display = 'none';
+                successMessage.style.display = 'none';
+
+                const productData = {
+                    name,
+                    description,
+                    price,
+                    stock,
+                    sellerId,
+                    sellerName,
+                    imageUrl: imageUrl || 'https://via.placeholder.com/400x400/E57A79/FFFFFF?text=' + encodeURIComponent(name)
+                };
+
+                await addProduct(productData, null);
+
+                successMessage.textContent = 'Product added successfully!';
+                successMessage.style.display = 'block';
+                addProductForm.reset();
+
+                // Scroll to top to show success message
+                window.scrollTo(0, 0);
+                
+                // Redirect to listings after 2 seconds
+                setTimeout(() => {
+                    window.location.href = 'listings.html';
+                }, 2000);
+            } catch (error) {
+                console.error('Error adding product:', error);
+                errorMessage.textContent = error.message || 'Error adding product. Please try again.';
+                errorMessage.style.display = 'block';
+                window.scrollTo(0, 0);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Seller Login</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="logo">🏪 Seller Portal</div>
+    </header>
+    <h2 class="page-title">Seller Login</h2>
+    <section class="form-card">
+        <div id="errorMessage" style="display: none;" class="error-message"></div>
+        <form id="sellerLoginForm">
+            <label>Email:</label>
+            <input type="email" id="email" name="email" required>
+            <label>Password:</label>
+            <input type="password" id="password" name="password" required>
+            <button type="submit" class="btn accent">Login as Seller</button>
+        </form>
+        <p><a href="login.html">Login as User</a> | <a href="register.html">Register</a></p>
+    </section>
+
+    <script type="module">
+        import { loginSeller, getAuthErrorMessage } from './js/auth.js';
+
+        const sellerLoginForm = document.getElementById('sellerLoginForm');
+        const errorMessage = document.getElementById('errorMessage');
+
+        sellerLoginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                errorMessage.style.display = 'none';
+                await loginSeller(email, password);
+                window.location.href = 'seller-dashboard.html';
+            } catch (error) {
+                errorMessage.textContent = getAuthErrorMessage(error);
+                errorMessage.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

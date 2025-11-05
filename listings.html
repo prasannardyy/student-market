@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Product Listings</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="logo">🏫 STUDENT MARKETPLACE</div>
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="cart.html">Cart</a>
+            <a href="seller-dashboard.html" class="btn" id="sellBtn" style="display: none;">Sell Item</a>
+            <a href="login.html" class="btn" id="authBtn">Login</a>
+        </nav>
+    </header>
+    <h2 class="page-title">Available Products</h2>
+    <div id="loadingMessage" class="loading">Loading products...</div>
+    <div id="errorMessage" style="display: none;" class="error-message"></div>
+    <section class="product-grid" id="product-list">
+        <!-- Products will be loaded here dynamically -->
+    </section>
+    <footer>
+        <p>©️ 2025 STUDENT MARKETPLACE</p>
+    </footer>
+
+    <script type="module">
+        import { auth, onAuthStateChanged } from './js/firebase-config.js';
+        import { logoutUser } from './js/auth.js';
+        import { getProducts } from './js/products.js';
+
+        const productList = document.getElementById('product-list');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const authBtn = document.getElementById('authBtn');
+        const sellBtn = document.getElementById('sellBtn');
+
+        // Check auth state
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                authBtn.textContent = 'Logout';
+                authBtn.href = '#';
+                authBtn.onclick = async (e) => {
+                    e.preventDefault();
+                    await logoutUser();
+                    window.location.href = 'index.html';
+                };
+
+                // Show sell button for sellers
+                const userRole = localStorage.getItem('userRole');
+                if (userRole === 'seller' || userRole === 'admin') {
+                    sellBtn.style.display = 'inline-block';
+                }
+            } else {
+                authBtn.textContent = 'Login';
+                authBtn.href = 'login.html';
+                sellBtn.style.display = 'none';
+            }
+        });
+
+        // Load products once (no real-time updates to prevent blinking)
+        let isLoading = false;
+        let productsLoaded = false;
+
+        async function loadProducts() {
+            // Prevent multiple simultaneous loads
+            if (isLoading || productsLoaded) return;
+            
+            isLoading = true;
+            
+            try {
+                const products = await getProducts();
+                loadingMessage.style.display = 'none';
+                
+                // Create a document fragment to avoid multiple reflows
+                const fragment = document.createDocumentFragment();
+
+                if (products.length === 0) {
+                    const emptyDiv = document.createElement('div');
+                    emptyDiv.style.cssText = 'text-align: center; padding: 40px;';
+                    emptyDiv.innerHTML = `
+                        <p>No products available yet.</p>
+                        <p style="margin-top: 20px;">
+                            ${localStorage.getItem('userRole') === 'seller' ? 
+                                '<a href="seller-dashboard.html" class="btn accent">Add Your First Product</a>' : 
+                                'Check back soon for new products!'}
+                        </p>
+                    `;
+                    fragment.appendChild(emptyDiv);
+                } else {
+                    products.forEach(product => {
+                        const productCard = document.createElement('div');
+                        productCard.className = 'product-card';
+                        const imageUrl = product.imageUrl || 'https://via.placeholder.com/400x300/E57A79/FFFFFF?text=Product+Image';
+                        productCard.innerHTML = `
+                            <img src="${imageUrl}" alt="${product.name}" onerror="this.src='https://via.placeholder.com/400x300/E57A79/FFFFFF?text=No+Image'" loading="lazy">
+                            <h3>${product.name}</h3>
+                            <p>₹${product.price}</p>
+                            <p style="font-size: 0.9em; color: #666;">Stock: ${product.stock}</p>
+                            <a href="item-details.html?id=${product.id}" class="btn accent">View Details</a>
+                        `;
+                        fragment.appendChild(productCard);
+                    });
+                }
+
+                // Single DOM update
+                productList.innerHTML = '';
+                productList.appendChild(fragment);
+                productsLoaded = true;
+                
+            } catch (error) {
+                console.error('Error loading products:', error);
+                loadingMessage.style.display = 'none';
+                errorMessage.textContent = 'Error loading products. Please refresh the page.';
+                errorMessage.style.display = 'block';
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        // Load products on page load - only once
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadProducts);
+        } else {
+            loadProducts();
+        }
+    </script>
+</body>
+</html>

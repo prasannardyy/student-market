@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Sample Products</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="logo">🏫 STUDENT MARKETPLACE</div>
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="listings.html">View Products</a>
+        </nav>
+    </header>
+
+    <div class="form-card">
+        <h2>Add Sample Products</h2>
+        <p>This will add 5 sample products to your marketplace for testing.</p>
+        <div id="status" style="margin: 20px 0;"></div>
+        <button id="addSamplesBtn" class="btn accent">Add Sample Products</button>
+        <div id="progress" style="margin-top: 20px;"></div>
+    </div>
+
+    <script type="module">
+        import { auth, onAuthStateChanged } from './js/firebase-config.js';
+        import { addProduct } from './js/products.js';
+
+        const addSamplesBtn = document.getElementById('addSamplesBtn');
+        const status = document.getElementById('status');
+        const progress = document.getElementById('progress');
+
+        // Sample products with nice placeholder images
+        const sampleProducts = [
+            {
+                name: "Wireless Headphones",
+                description: "High-quality Bluetooth headphones with noise cancellation. Perfect for studying or listening to music. 20-hour battery life.",
+                price: 1200,
+                stock: 15,
+                imageUrl: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop"
+            },
+            {
+                name: "Java Programming Textbook",
+                description: "Complete guide to Java programming. Includes examples and exercises. Great condition, barely used.",
+                price: 450,
+                stock: 8,
+                imageUrl: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=400&h=400&fit=crop"
+            },
+            {
+                name: "Scientific Calculator",
+                description: "TI-84 Plus graphing calculator. Essential for math and engineering courses. Includes manual.",
+                price: 800,
+                stock: 5,
+                imageUrl: "https://images.unsplash.com/photo-1611348586804-61bf6c080437?w=400&h=400&fit=crop"
+            },
+            {
+                name: "Laptop Stand",
+                description: "Adjustable aluminum laptop stand. Improves posture and cooling. Compatible with all laptop sizes.",
+                price: 350,
+                stock: 20,
+                imageUrl: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400&h=400&fit=crop"
+            },
+            {
+                name: "USB Flash Drive 64GB",
+                description: "High-speed USB 3.0 flash drive. Perfect for storing assignments and projects. Compact design.",
+                price: 250,
+                stock: 30,
+                imageUrl: "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400&h=400&fit=crop"
+            }
+        ];
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                status.innerHTML = '<p class="error-message">Please login first to add sample products.</p>';
+                addSamplesBtn.disabled = true;
+                return;
+            }
+
+            const userId = user.uid;
+            const userName = localStorage.getItem('userName') || 'Sample Seller';
+
+            addSamplesBtn.addEventListener('click', async () => {
+                addSamplesBtn.disabled = true;
+                status.innerHTML = '<p class="loading">Adding sample products...</p>';
+                progress.innerHTML = '';
+
+                let successCount = 0;
+                let failCount = 0;
+
+                for (let i = 0; i < sampleProducts.length; i++) {
+                    const product = sampleProducts[i];
+                    try {
+                        const productData = {
+                            ...product,
+                            sellerId: userId,
+                            sellerName: userName
+                        };
+
+                        await addProduct(productData, null);
+                        successCount++;
+                        progress.innerHTML += `<p style="color: green;">✓ Added: ${product.name}</p>`;
+                    } catch (error) {
+                        failCount++;
+                        progress.innerHTML += `<p style="color: red;">✗ Failed: ${product.name} - ${error.message}</p>`;
+                    }
+                }
+
+                if (failCount === 0) {
+                    status.innerHTML = `<p class="success-message">Successfully added ${successCount} sample products!</p>`;
+                    setTimeout(() => {
+                        window.location.href = 'listings.html';
+                    }, 2000);
+                } else {
+                    status.innerHTML = `<p class="error-message">Added ${successCount} products, ${failCount} failed.</p>`;
+                    addSamplesBtn.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

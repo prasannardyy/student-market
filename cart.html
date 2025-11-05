@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Cart</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="logo">🏫 STUDENT MARKETPLACE</div>
+        <nav>
+            <a href="listings.html">Continue Shopping</a>
+        </nav>
+    </header>
+    <h2 class="page-title">Your Cart</h2>
+    <div id="loadingMessage" class="loading">Loading cart...</div>
+    <div id="errorMessage" style="display: none;" class="error-message"></div>
+    <div id="emptyCart" style="display: none; text-align: center; padding: 40px;">
+        <p>Your cart is empty</p>
+        <a href="listings.html" class="btn accent">Browse Products</a>
+    </div>
+    <div id="cartContent" style="display: none;">
+        <table class="cart-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Price</th>
+                    <th>Qty</th>
+                    <th>Total</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="cartItems">
+                <!-- Cart items will be loaded here -->
+            </tbody>
+        </table>
+        <div class="checkout">
+            <h3>Total: ₹<span id="cartTotal">0</span></h3>
+            <button class="btn accent" onclick="alert('Checkout functionality coming soon!')">Proceed to Payment</button>
+        </div>
+    </div>
+    <footer>
+        <p>©️ 2025 STUDENT MARKETPLACE</p>
+    </footer>
+
+    <script type="module">
+        import { auth, onAuthStateChanged } from './js/firebase-config.js';
+        import { getCartItems, removeFromCart, updateCartQuantity, calculateCartTotal } from './js/cart.js';
+
+        const loadingMessage = document.getElementById('loadingMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const emptyCart = document.getElementById('emptyCart');
+        const cartContent = document.getElementById('cartContent');
+        const cartItems = document.getElementById('cartItems');
+        const cartTotal = document.getElementById('cartTotal');
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                const items = await getCartItems(user.uid);
+                loadingMessage.style.display = 'none';
+
+                if (items.length === 0) {
+                    emptyCart.style.display = 'block';
+                } else {
+                    cartContent.style.display = 'block';
+                    displayCartItems(items);
+                }
+            } catch (error) {
+                console.error('Error loading cart:', error);
+                loadingMessage.style.display = 'none';
+                errorMessage.textContent = 'Error loading cart. Please refresh the page.';
+                errorMessage.style.display = 'block';
+            }
+        });
+
+        function displayCartItems(items) {
+            cartItems.innerHTML = '';
+            
+            items.forEach(item => {
+                const row = document.createElement('tr');
+                const itemTotal = item.product.price * item.quantity;
+                
+                row.innerHTML = `
+                    <td>${item.product.name}</td>
+                    <td>₹${item.product.price}</td>
+                    <td>
+                        <input type="number" value="${item.quantity}" min="1" max="${item.product.stock}" 
+                               style="width: 60px; padding: 5px;" 
+                               data-cart-id="${item.cartItemId}" 
+                               class="quantity-input">
+                    </td>
+                    <td>₹${itemTotal.toFixed(2)}</td>
+                    <td>
+                        <button class="btn small remove-btn" data-cart-id="${item.cartItemId}">Remove</button>
+                    </td>
+                `;
+                cartItems.appendChild(row);
+            });
+
+            // Update total
+            const total = calculateCartTotal(items);
+            cartTotal.textContent = total.toFixed(2);
+
+            // Add event listeners for remove buttons
+            document.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const cartItemId = e.target.dataset.cartId;
+                    try {
+                        await removeFromCart(cartItemId);
+                        window.location.reload();
+                    } catch (error) {
+                        alert('Error removing item. Please try again.');
+                    }
+                });
+            });
+
+            // Add event listeners for quantity inputs
+            document.querySelectorAll('.quantity-input').forEach(input => {
+                input.addEventListener('change', async (e) => {
+                    const cartItemId = e.target.dataset.cartId;
+                    const newQuantity = parseInt(e.target.value);
+                    
+                    if (newQuantity < 1) {
+                        alert('Quantity must be at least 1');
+                        e.target.value = 1;
+                        return;
+                    }
+
+                    try {
+                        await updateCartQuantity(cartItemId, newQuantity);
+                        window.location.reload();
+                    } catch (error) {
+                        alert('Error updating quantity. Please try again.');
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>

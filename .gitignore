@@ -1,0 +1,24 @@
+# Firebase configuration (if you want to keep API keys private)
+# Uncomment the line below if you want to exclude your Firebase config
+# js/firebase-config.js
+
+# Node modules (if using npm)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment variables
+.env
+.env.local

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Products</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .product-item {
+            background: var(--card);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .product-item img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+        .product-info {
+            flex: 1;
+        }
+        .product-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .no-image {
+            background: #ffebee;
+            border: 2px solid #ef5350;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">🏫 STUDENT MARKETPLACE - Manage Products</div>
+        <nav>
+            <a href="listings.html">View Products</a>
+            <a href="index.html">Home</a>
+        </nav>
+    </header>
+
+    <div class="form-card" style="max-width: 900px;">
+        <h2>Manage All Products</h2>
+        <p>View and delete products. Products without proper images are highlighted in red.</p>
+        
+        <div style="margin: 20px 0;">
+            <button id="deleteNoImageBtn" class="btn accent">Delete All Products Without Images</button>
+            <button id="refreshBtn" class="btn">Refresh List</button>
+        </div>
+
+        <div id="status" style="margin: 20px 0;"></div>
+        <div id="loadingMessage" class="loading">Loading products...</div>
+        <div id="productsList"></div>
+    </div>
+
+    <script type="module">
+        import { auth, db, onAuthStateChanged } from './js/firebase-config.js';
+        import { deleteProduct } from './js/products.js';
+        import { collection, getDocs, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const productsList = document.getElementById('productsList');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const status = document.getElementById('status');
+        const deleteNoImageBtn = document.getElementById('deleteNoImageBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+
+        let allProducts = [];
+
+        // Check if user is logged in
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                status.innerHTML = '<p class="error-message">Please login first to manage products.</p>';
+                deleteNoImageBtn.disabled = true;
+                refreshBtn.disabled = true;
+                return;
+            }
+            loadProducts();
+        });
+
+        async function loadProducts() {
+            try {
+                loadingMessage.style.display = 'block';
+                productsList.innerHTML = '';
+                
+                const productsRef = collection(db, 'products');
+                const querySnapshot = await getDocs(productsRef);
+                
+                allProducts = [];
+                querySnapshot.forEach((doc) => {
+                    allProducts.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                loadingMessage.style.display = 'none';
+
+                if (allProducts.length === 0) {
+                    productsList.innerHTML = '<p style="text-align: center; padding: 20px;">No products found.</p>';
+                    return;
+                }
+
+                displayProducts(allProducts);
+            } catch (error) {
+                console.error('Error loading products:', error);
+                loadingMessage.style.display = 'none';
+                status.innerHTML = '<p class="error-message">Error loading products: ' + error.message + '</p>';
+            }
+        }
+
+        function displayProducts(products) {
+            productsList.innerHTML = '';
+            
+            products.forEach(product => {
+                const hasImage = product.imageUrl && 
+                                !product.imageUrl.includes('placeholder') && 
+                                !product.imageUrl.includes('via.placeholder');
+                
+                const productDiv = document.createElement('div');
+                productDiv.className = 'product-item' + (hasImage ? '' : ' no-image');
+                
+                const imageUrl = product.imageUrl || 'https://via.placeholder.com/80x80/cccccc/666666?text=No+Image';
+                
+                productDiv.innerHTML = `
+                    <img src="${imageUrl}" alt="${product.name}" onerror="this.src='https://via.placeholder.com/80x80/cccccc/666666?text=Error'">
+                    <div class="product-info">
+                        <h3 style="margin: 0 0 5px 0;">${product.name}</h3>
+                        <p style="margin: 0; font-size: 0.9em; color: #666;">
+                            Price: ₹${product.price} | Stock: ${product.stock} | 
+                            ${hasImage ? '✅ Has Image' : '❌ No Image'}
+                        </p>
+                        <p style="margin: 5px 0 0 0; font-size: 0.85em; color: #999;">
+                            Seller: ${product.sellerName || 'Unknown'} | ID: ${product.id.substring(0, 8)}...
+                        </p>
+                    </div>
+                    <div class="product-actions">
+                        <button class="btn small delete-btn" data-id="${product.id}">Delete</button>
+                    </div>
+                `;
+                
+                productsList.appendChild(productDiv);
+            });
+
+            // Add delete button listeners
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const productId = e.target.dataset.id;
+                    const product = allProducts.find(p => p.id === productId);
+                    
+                    if (confirm(`Delete "${product.name}"?`)) {
+                        try {
+                            await deleteDoc(doc(db, 'products', productId));
+                            status.innerHTML = '<p class="success-message">Product deleted successfully!</p>';
+                            setTimeout(() => status.innerHTML = '', 3000);
+                            loadProducts();
+                        } catch (error) {
+                            status.innerHTML = '<p class="error-message">Error deleting product: ' + error.message + '</p>';
+                        }
+                    }
+                });
+            });
+        }
+
+        // Delete all products without images
+        deleteNoImageBtn.addEventListener('click', async () => {
+            const productsWithoutImages = allProducts.filter(p => 
+                !p.imageUrl || 
+                p.imageUrl.includes('placeholder') || 
+                p.imageUrl.includes('via.placeholder')
+            );
+
+            if (productsWithoutImages.length === 0) {
+                status.innerHTML = '<p class="success-message">All products have images! Nothing to delete.</p>';
+                return;
+            }
+
+            if (!confirm(`Delete ${productsWithoutImages.length} products without images?`)) {
+                return;
+            }
+
+            deleteNoImageBtn.disabled = true;
+            status.innerHTML = '<p class="loading">Deleting products...</p>';
+
+            let deleted = 0;
+            let failed = 0;
+
+            for (const product of productsWithoutImages) {
+                try {
+                    await deleteDoc(doc(db, 'products', product.id));
+                    deleted++;
+                } catch (error) {
+                    console.error('Error deleting product:', product.id, error);
+                    failed++;
+                }
+            }
+
+            deleteNoImageBtn.disabled = false;
+            status.innerHTML = `<p class="success-message">Deleted ${deleted} products. ${failed > 0 ? `Failed: ${failed}` : ''}</p>`;
+            loadProducts();
+        });
+
+        // Refresh button
+        refreshBtn.addEventListener('click', () => {
+            loadProducts();
+        });
+    </script>
+</body>
+</html>

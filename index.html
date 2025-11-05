@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>STUDENT MARKETPLACE</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="logo">🏫 STUDENT MARKETPLACE</div>
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="listings.html">Products</a>
+            <a href="cart.html">Cart</a>
+            <a href="login.html" class="btn" id="authBtn">Login</a>
+        </nav>
+    </header>
+    <section class="hero">
+        <h1>Buy & Sell Easily on Campus</h1>
+        <p>Join the vibrant campus marketplace — find products, connect with sellers, and shop safely.</p>
+        <a href="listings.html" class="btn accent">Browse Products</a>
+    </section>
+    <footer>
+        <p>©️ 2025 STUDENT MARKETPLACE | Made with ❤️ in Java</p>
+    </footer>
+
+    <script type="module">
+        import { auth, onAuthStateChanged } from './js/firebase-config.js';
+        
+        onAuthStateChanged(auth, (user) => {
+            const authBtn = document.getElementById('authBtn');
+            if (user) {
+                authBtn.textContent = 'Logout';
+                authBtn.href = '#';
+                authBtn.onclick = async (e) => {
+                    e.preventDefault();
+                    const { logoutUser } = await import('./js/auth.js');
+                    await logoutUser();
+                    window.location.href = 'index.html';
+                };
+            } else {
+                authBtn.textContent = 'Login';
+                authBtn.href = 'login.html';
+            }
+        });
+    </script>
+</body>
+</html>

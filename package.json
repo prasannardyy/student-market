@@ -1,0 +1,21 @@
+{
+  "name": "student-marketplace",
+  "version": "1.0.0",
+  "description": "Campus marketplace for students to buy and sell products",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "serve": "npx http-server -p 8000"
+  },
+  "keywords": [
+    "marketplace",
+    "firebase",
+    "student",
+    "ecommerce"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

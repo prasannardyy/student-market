@@ -1,0 +1,8 @@
+This directory is for sample product images.
+
+You can add sample images here with names like:
+- sample1.jpg
+- sample2.jpg
+- etc.
+
+These will be used as fallback images when products don't have uploaded images.

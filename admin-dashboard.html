@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="logo">🏫 STUDENT MARKETPLACE - Admin</div>
+        <nav>
+            <a href="listings.html">View Products</a>
+            <a href="index.html" id="logoutBtn">Logout</a>
+        </nav>
+    </header>
+    <section class="dashboard">
+        <h2>Manage Sellers</h2>
+        <div id="loadingMessage" class="loading">Loading sellers...</div>
+        <div id="errorMessage" style="display: none;" class="error-message"></div>
+        <table id="sellersTable" style="display: none;">
+            <tr>
+                <th>Seller ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+            <tbody id="sellersBody">
+                <!-- Sellers will be loaded here -->
+            </tbody>
+        </table>
+
+        <h2>Add Payment Method</h2>
+        <div id="paymentSuccessMessage" style="display: none;" class="success-message"></div>
+        <form class="form-card" id="paymentForm">
+            <label>Payment Type:</label>
+            <input type="text" id="paymentType" required placeholder="e.g., UPI, Credit Card, Net Banking">
+            <label>Details:</label>
+            <textarea id="paymentDetails" rows="3" placeholder="Enter payment method details"></textarea>
+            <button class="btn accent" type="submit">Add Payment</button>
+        </form>
+    </section>
+    <footer>
+        <p>©️ 2025 STUDENT MARKETPLACE</p>
+    </footer>
+
+    <script type="module">
+        import { auth, onAuthStateChanged } from './js/firebase-config.js';
+        import { logoutUser } from './js/auth.js';
+        import { getAllSellers, deactivateSeller, activateSeller, addPaymentMethod } from './js/admin.js';
+
+        const loadingMessage = document.getElementById('loadingMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const sellersTable = document.getElementById('sellersTable');
+        const sellersBody = document.getElementById('sellersBody');
+        const paymentForm = document.getElementById('paymentForm');
+        const paymentSuccessMessage = document.getElementById('paymentSuccessMessage');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // Check if user is authenticated and is an admin
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const userRole = localStorage.getItem('userRole');
+            if (userRole !== 'admin') {
+                alert('Access denied. Admin credentials required.');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Load sellers
+            try {
+                const sellers = await getAllSellers();
+                loadingMessage.style.display = 'none';
+                sellersTable.style.display = 'table';
+
+                if (sellers.length === 0) {
+                    sellersBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No sellers found</td></tr>';
+                } else {
+                    displaySellers(sellers);
+                }
+            } catch (error) {
+                console.error('Error loading sellers:', error);
+                loadingMessage.style.display = 'none';
+                errorMessage.textContent = 'Error loading sellers. Please refresh the page.';
+                errorMessage.style.display = 'block';
+            }
+        });
+
+        // Logout handler
+        logoutBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await logoutUser();
+            window.location.href = 'index.html';
+        });
+
+        function displaySellers(sellers) {
+            sellersBody.innerHTML = '';
+            
+            sellers.forEach(seller => {
+                const row = document.createElement('tr');
+                const status = seller.isActive ? 'Active' : 'Inactive';
+                const actionBtn = seller.isActive ? 
+                    `<button class="btn small deactivate-btn" data-seller-id="${seller.id}">Deactivate</button>` :
+                    `<button class="btn small activate-btn" data-seller-id="${seller.id}">Activate</button>`;
+                
+                row.innerHTML = `
+                    <td>${seller.id.substring(0, 8)}...</td>
+                    <td>${seller.name}</td>
+                    <td>${seller.email}</td>
+                    <td>${status}</td>
+                    <td>${actionBtn}</td>
+                `;
+                sellersBody.appendChild(row);
+            });
+
+            // Add event listeners for deactivate buttons
+            document.querySelectorAll('.deactivate-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const sellerId = e.target.dataset.sellerId;
+                    if (confirm('Are you sure you want to deactivate this seller?')) {
+                        try {
+                            await deactivateSeller(sellerId);
+                            window.location.reload();
+                        } catch (error) {
+                            alert('Error deactivating seller. Please try again.');
+                        }
+                    }
+                });
+            });
+
+            // Add event listeners for activate buttons
+            document.querySelectorAll('.activate-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const sellerId = e.target.dataset.sellerId;
+                    try {
+                        await activateSeller(sellerId);
+                        window.location.reload();
+                    } catch (error) {
+                        alert('Error activating seller. Please try again.');
+                    }
+                });
+            });
+        }
+
+        // Payment form handler
+        paymentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const type = document.getElementById('paymentType').value;
+            const details = document.getElementById('paymentDetails').value;
+
+            try {
+                await addPaymentMethod({ type, details });
+                paymentSuccessMessage.textContent = 'Payment method added successfully!';
+                paymentSuccessMessage.style.display = 'block';
+                paymentForm.reset();
+
+                setTimeout(() => {
+                    paymentSuccessMessage.style.display = 'none';
+                }, 3000);
+            } catch (error) {
+                alert('Error adding payment method. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html>

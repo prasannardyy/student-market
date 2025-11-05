@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Firebase Connection Test</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .test-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 30px;
+            background: var(--card);
+            border-radius: 12px;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .status.pending {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+        .config-display {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9em;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">🏫 STUDENT MARKETPLACE - Firebase Test</div>
+        <nav>
+            <a href="index.html">Back to Home</a>
+        </nav>
+    </header>
+
+    <div class="test-container">
+        <h2>Firebase Connection Test</h2>
+        <p>This page will help you verify that Firebase is configured correctly.</p>
+
+        <h3>Configuration Status</h3>
+        <div id="configStatus" class="status pending">⏳ Checking configuration...</div>
+
+        <h3>Your Firebase Config</h3>
+        <div id="configDisplay" class="config-display">Loading...</div>
+
+        <h3>Service Tests</h3>
+        <div id="authStatus" class="status pending">⏳ Testing Authentication...</div>
+        <div id="firestoreStatus" class="status pending">⏳ Testing Firestore...</div>
+        <div id="storageStatus" class="status pending">⏳ Testing Storage...</div>
+
+        <h3>What to do if tests fail:</h3>
+        <ol>
+            <li>Make sure you've created a Firebase project at <a href="https://console.firebase.google.com" target="_blank">Firebase Console</a></li>
+            <li>Update <code>js/firebase-config.js</code> with your actual Firebase configuration</li>
+            <li>Enable Authentication (Email/Password) in Firebase Console</li>
+            <li>Enable Firestore Database in test mode</li>
+            <li>Enable Cloud Storage in test mode</li>
+            <li>Refresh this page to test again</li>
+        </ol>
+
+        <p><strong>Need help?</strong> Check <a href="FIREBASE_SETUP.md">FIREBASE_SETUP.md</a> for detailed instructions.</p>
+    </div>
+
+    <script type="module">
+        import { auth, db, storage } from './js/firebase-config.js';
+        import { collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { ref, listAll } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
+
+        const configStatus = document.getElementById('configStatus');
+        const configDisplay = document.getElementById('configDisplay');
+        const authStatus = document.getElementById('authStatus');
+        const firestoreStatus = document.getElementById('firestoreStatus');
+        const storageStatus = document.getElementById('storageStatus');
+
+        // Check if config is still using placeholder values
+        function checkConfig() {
+            const config = auth.app.options;
+            
+            configDisplay.innerHTML = `
+                <strong>Project ID:</strong> ${config.projectId}<br>
+                <strong>Auth Domain:</strong> ${config.authDomain}<br>
+                <strong>Storage Bucket:</strong> ${config.storageBucket}<br>
+                <strong>API Key:</strong> ${config.apiKey.substring(0, 20)}...
+            `;
+
+            if (config.apiKey.includes('XXXXX') || config.projectId === 'your-project-id') {
+                configStatus.className = 'status error';
+                configStatus.innerHTML = '❌ Configuration NOT updated - Still using placeholder values!';
+                return false;
+            } else {
+                configStatus.className = 'status success';
+                configStatus.innerHTML = '✅ Configuration looks good!';
+                return true;
+            }
+        }
+
+        // Test Authentication
+        async function testAuth() {
+            try {
+                // Just check if auth is initialized
+                if (auth) {
+                    authStatus.className = 'status success';
+                    authStatus.innerHTML = '✅ Authentication service is initialized';
+                    return true;
+                }
+            } catch (error) {
+                authStatus.className = 'status error';
+                authStatus.innerHTML = `❌ Authentication error: ${error.message}`;
+                return false;
+            }
+        }
+
+        // Test Firestore
+        async function testFirestore() {
+            try {
+                // Try to read from a collection (will fail gracefully if not enabled)
+                const testCollection = collection(db, 'test');
+                await getDocs(testCollection);
+                firestoreStatus.className = 'status success';
+                firestoreStatus.innerHTML = '✅ Firestore is enabled and accessible';
+                return true;
+            } catch (error) {
+                if (error.code === 'permission-denied') {
+                    firestoreStatus.className = 'status success';
+                    firestoreStatus.innerHTML = '✅ Firestore is enabled (permission denied is normal for empty database)';
+                    return true;
+                }
+                firestoreStatus.className = 'status error';
+                firestoreStatus.innerHTML = `❌ Firestore error: ${error.message}. Make sure Firestore is enabled in Firebase Console.`;
+                return false;
+            }
+        }
+
+        // Test Storage
+        async function testStorage() {
+            try {
+                if (!storage) {
+                    storageStatus.className = 'status pending';
+                    storageStatus.innerHTML = '⚠️ Cloud Storage not enabled (requires Blaze plan). App will use placeholder images.';
+                    return true; // Not a failure, just optional
+                }
+                // Try to list files in storage root
+                const storageRef = ref(storage);
+                await listAll(storageRef);
+                storageStatus.className = 'status success';
+                storageStatus.innerHTML = '✅ Cloud Storage is enabled and accessible';
+                return true;
+            } catch (error) {
+                if (error.code === 'storage/unauthorized') {
+                    storageStatus.className = 'status success';
+                    storageStatus.innerHTML = '✅ Cloud Storage is enabled (unauthorized is normal without auth)';
+                    return true;
+                }
+                storageStatus.className = 'status pending';
+                storageStatus.innerHTML = `⚠️ Storage not available (requires Blaze plan). App will use placeholder images.`;
+                return true; // Not a critical error
+            }
+        }
+
+        // Run all tests
+        async function runTests() {
+            const configOk = checkConfig();
+            
+            if (!configOk) {
+                authStatus.className = 'status error';
+                authStatus.innerHTML = '❌ Skipped - Fix configuration first';
+                firestoreStatus.className = 'status error';
+                firestoreStatus.innerHTML = '❌ Skipped - Fix configuration first';
+                storageStatus.className = 'status error';
+                storageStatus.innerHTML = '❌ Skipped - Fix configuration first';
+                return;
+            }
+
+            await testAuth();
+            await testFirestore();
+            await testStorage();
+        }
+
+        // Run tests on page load
+        runTests();
+    </script>
+</body>
+</html>
