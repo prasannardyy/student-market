@@ -1,7 +1,7 @@
 // Cart Module
 import { db } from './firebase-config.js';
 import { 
-    collection, 
+    collection,
     addDoc, 
     getDocs, 
     getDoc,
